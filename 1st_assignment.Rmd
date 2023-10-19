@@ -54,7 +54,7 @@ library(ggrepel)
 ```{r}
 # 载入数据和预处理
 
-lj<- read_csv("/Users/jameschen/Documents/02_Teaching/12_quantitative_thinking_R/data/2023-09-12_cleaned.csv")
+lj_wuhan<- read_csv("D:/user/01380974/Documents/2023-09-12_cleaned.csv")
 # EDA ---------------------------------------------------------------------
 
 ## 如下语句可以解决画图中的中文显示问题，当然你可以用showtext包来解决
@@ -70,7 +70,7 @@ theme_set(theme(text = element_text(family="Songti SC",size = 10))) #这里famil
 数据表（lj)共包括`r names(lj)`等`r ncol(lj)`个变量,共`r nrow(lj)`行。表的前10行示例如下：
 
 ```{r}
-lj %>% 
+lj_wuhan %>% 
   head(10) %>%
   kable(caption = "武汉链家二手房") %>% 
   kable_styling()
@@ -78,77 +78,137 @@ lj %>%
 
 各变量的简短信息：
 ```{r}
-glimpse(lj)
+glimpse(lj_wuhan)
 ```
 
 各变量的简短统计：
 ```{r}
-summary(lj)
+summary(lj_wuhan)
 ```
 
 可以看到：
 
-- 直观结论1
+- 小庭观察1：从数据源lj_wuhan数据摘要看到，与核心数据相关的 price_ttl 、price_sqm、bedrooms、livingrooms 、building_area等字段总结出了该字段数据的最小值min、第一分位值1st Qu.、第三分位值3rd Qu.、中位数Median、平均值Mean、最大值Max，可便于我们从各个维度看到该字段的数据属性，便于相关数据分析人员作为相关决策依据
 
-- 直观结论2
+- 小庭观察2：该数据中的所有字段数据是有3000行，但有些字段为空NA，有可能该系统在采集数据时，这些字段如vr 为非必填，因此未能采集到，若后续管理人员的决策需要依赖该字段，则前端系统在采集数据时需要注意信息采集的必要性。
 
 - ...
 
 # 探索性分析
 
-## 变量1的数值描述与图形
+## 变量1(二手房均价price_sqm)的数值描述与图形
 
-发现：
+发现：表中的二手房均价是15148.49，大部分的大家集中在10000~2000之间，楼房最高价和最低价之间相差 42885
 
-- 发现1
+```{r}
+lj_wuhan%>%ggplot(aes(price_sqm))+geom_histogram(color="black")
+a_mean <- mean(lj_wuhan$price_sqm, na.rm = TRUE)  
+print(a_mean)
+b_sd <- max(lj_wuhan$price_sqm)-min(lj_wuhan$price_sqm)
+print(b_sd)
+       
+```
 
-- 发现2
+## 变量2(二手房地区 property_region)的数值描述与图形
+- 发现2：从武汉二手链家房屋数据，可以观察到武汉地区的房价排名前10的情况：
+武汉地区二手房放量最多的地区分别是：白沙洲、盘龙城、四新、光谷东、金银湖、后湖、青山、王家湾、塔子湖、罗氏南路，从武汉市整体地理位置来说，这些二手房量多的主要分散在武汉市中心外（可以根据R画出二手房量所处的地理位置，再划定二环、三环等市中心位置，来分析这些二手房量多的位置主要散落在哪里，由于R语言使用能力有限，目前暂时无法划出）
 
-## 变量2的数值描述与图形
 
-发现：
+```{r}
+lj_wuhan%>%
+  count(property_region)%>%
+  arrange(desc(n))%>%
+  head(10)%>%
+  ggplot(aes(fct_reorder(property_region,-n),n))+
+  geom_col(color="blue")
+###region是分类变量，必须用geom_col或geom_bar，条形图。
+###要按照数值排序，可以使用ggplot(aes(fct_reorder(property_region,-n),n))
+```
 
-- 发现1
 
-- 发现2
 
-## 变量...的数值描述与图形
 
-发现：
 
-- 发现1
 
-- 发现2
+## 变量3的数值描述与图形
+
+发现：81.8%的二手房朝向为南，符合中国人对居住环境坐北朝南的居住要求，且相比于其他朝向，朝南的房屋均价高于其他朝向（这一条在R语言分析中一直报错，但用其他工具测算趋势是朝南的均价会相对高一点）
+```{r}
+n_cx <- count(lj_wuhan,directions1)
+arrange(n_cx,desc(n))
+print(n_cx)
+n_cx%>%
+  group_by(directions1,n)%>%
+  summarise(avg_ttl = mean(lj_wuhan$price_ttl),
+            avg_sqm = mean(lj_wuhan$price_sqm/10000),
+            avg_building_area = mean(lj_wuhan$building_area),
+            cx_por = sprintf("%.2f%%", (n/3000)*100) # 保留两位小数
+  )
+pie(n_cx$n)
+
+
+```
+
 
 ## 探索问题1
 
-发现：
+发现：房屋均价price_spm与是否精装修decoration之间的关系
 
-- 发现1
+- 发现1:精装修数量最多1757套占比58.57%，其次是简装637套，占比21.13，再次是毛坯436套，占比14.53
 
-- 发现2
+- 发现2：二手房精装修的房屋均价高于其他，每平方米多2000左右，
+
+```{r}
+lj_wuhan%>%
+  group_by(decoration)%>%
+ summarise(
+   deco_mean=mean(price_sqm),
+   deco_count=table(decoration),
+   deco_por = sprintf("%.2f%%", (deco_count/3000)*100)
+   )%>%
+arrange(desc(deco_mean))
+```
+
+
 
 ## 探索问题2
 
-发现：
+发现：房屋均价price_spm与楼层property_height之间的关系
 
-- 发现1
+- 发现1:均价最高的是低楼层15378.75，其次是高楼层15194.52，再次是中楼层均价是14990.94（这与我常识的设想是不同的，在我的假设中高楼层应该是价格最高，低楼层的价格最低）
 
-- 发现2
+- 发现2：楼层高低的价格与供应量有关，供应量最大的中楼层均价最低，供应量最小的低楼层均价最高，符合经济学常识中的供应量与价格的关系
+
+```{r}
+lj_wuhan%>%
+  group_by(property_height)%>%
+  summarise(
+    height_mean=mean(price_sqm),
+    height_count=table(property_height),
+    height_por = sprintf("%.2f%%", (height_count/3000)*100)
+  )%>%
+  arrange(desc(height_mean))
+```
+
+
 
 ## 探索问题3
 
-发现：
+发现：房屋均价价price_spm与近地铁near_subway属性之间的关系
 
 - 发现1
 
 - 发现2
+```{r}
+
+```
+
 
 ---
 
 # 发现总结
 
-用1-3段话总结你的发现。
+二楼房中涉及的多个变量，我更加关注地区、均价两个指标从数据中可以探索发现均价与诸多住房相关属性如供给量，所属楼层，所在地域，是否是否靠近地铁等
 
 
 
